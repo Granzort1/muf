@@ -28,19 +28,18 @@ self_academy = pd.read_csv("C:\\muf\\standard_conc\\academy.csv", encoding='utf-
 # List all the dataframes and their corresponding titles
 dataframes = [self_under_station, ob3_min, ob4_min, self_academy, ob10_min, self_daycare, ob5_min, ob6_min, ob7_min,
               ob8_min, ob9_min, self_inparking, ob1_min, self_insports, ob2_min]
-titles = ["기존측정\n(지하역사)", "영통역\n대합실", "영통역\n지하역사", "기존측정\n(학원)", "하이씨앤씨\n학원", "기존측정\n(어린이집)", "이든어린이집", "좋은이웃\n데이케어센터1",
+titles = ["자가측정\n(지하역사)", "영통역\n대합실", "영통역\n지하역사", "자가측정\n(학원)", "하이씨앤씨\n학원", "자가측정\n(어린이집)", "이든어린이집", "좋은이웃\n데이케어센터1",
           "좋은이웃\n데이케어센터2", "좋은이웃\n데이케어센터3", "좋은이웃\n데이케어센터4",
-          "기존측정\n(실내주차장)", "가산A1\n타워주차장", "기존측정\n(실내체육시설)", "에이샵\n스크린골프"]
+          "자가측정\n(실내주차장)", "가산A1\n타워주차장", "자가측정\n(실내체육시설)", "에이샵\n스크린골프"]
 
 # List all the pollutants
 pollutants = ["pm10", "co2", "hcho", "tab", "co", "pm25", "no2", "rn", "voc", 'humi', 'temp']
 
 # Create a color palette for the boxplots
-colors = ['blue' if '기존측정' in title else 'red' for title in titles]
+colors = ['blue' if '자가측정' in title else 'black' for title in titles]
 
 def formatter(y, pos):
     return '{:,.0f}'.format(y)
-
 
 # Iterate through each pollutant
 for pollutant in pollutants:
@@ -156,19 +155,15 @@ for pollutant in pollutants:
     # Create a new figure
     fig, ax = plt.subplots(figsize=(16, 10))
 
-    # Create the boxplot
-    boxplot = sns.boxplot(data=pd.DataFrame(data_all_sites), palette=colors, ax=ax)
+    # 에러바와 중앙값 선 색상 설정
+    whisker_color = 'black'  # 밝은 회색
+    linewidth = 2  # 선 굵기
 
-    # 수염 색상을 검은색으로 설정
-    for i, artist in enumerate(boxplot.artists):
-        # 박스 색상 설정
-        artist.set_facecolor(colors[i])
-        # 수염과 중앙선 색상을 검은색으로 설정
-        for j in range(i*6, i*6+6):
-            boxplot.lines[j].set_color('black')
+    # Create the boxplot with specified whisker color
+    boxplot = sns.boxplot(data=pd.DataFrame(data_all_sites), palette=colors, ax=ax, linecolor='black', medianprops={"color": "#808080", "linewidth": 1.5})
 
 
-    ax.set_yscale("log")  # Changed from "log" to "log"
+    ax.set_yscale("log")
     ax.set_ylim(bottom=min_value)  # Set lower limit to exclude negative values
 
     plt.plot([-0.5, 4.5], [cut_conc1, cut_conc1], color=col1, linestyle='--')
@@ -189,14 +184,9 @@ for pollutant in pollutants:
     if min_value != float('inf'):
         ax.set_ylim([min_value*0.2, ax.get_ylim()[1]])
 
-    # x틱 색상 기존측정소=레드, 나머지 블랙
-    # colorsk = ['red', 'black', 'black', 'red', 'black', 'red', 'black', 'black', 'black', 'black', 'black', 'red',
-    #            'black', 'red', 'black']
-
-    # x틱 색상 모두블랙
-    colorsk = ['black', 'black', 'black', 'black', 'black', 'black', 'black', 'black', 'black', 'black', 'black', 'black',
-               'black', 'black', 'black']
-
+    # x틱 색상 자가측정소=블루, 나머지 블랙
+    colorsk = ['blue', 'black', 'black', 'blue', 'black', 'blue', 'black', 'black', 'black', 'black', 'black', 'blue',
+               'black', 'blue', 'black']
 
     for label, color in zip(ax.get_xticklabels(), colorsk):
         label.set_color(color)
