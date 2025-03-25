@@ -15,6 +15,8 @@ import shutil
 
 # OptiPNG 경로를 직접 지정 (필요시 실제 경로로 수정)
 OPTIPNG_PATH = "C:/Tool/optipng-0.7.7-win32/optipng.exe"  # 예시 경로
+# OptiPNG 활성화 여부 (False로 설정하면 최적화 건너뜀)
+ENABLE_OPTIMIZATION = False
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
@@ -25,17 +27,20 @@ korean_font = fm.FontProperties(family='Batang')
 scientific_names = {
     'pm10': 'PM₁₀',
     'pm25': 'PM₂.₅',
-    'pm1': 'PM₁',
-    'humi': 'RH',
-    'temp': 'T',
+    'pm1': 'PM₁',  # 제외 예정
+    'humi': 'Relative\nHumidity',
+    'temp': 'Temperature',
     'hcho': 'HCHO',
     'co': 'CO',
     'no2': 'NO₂',
-    'rn': 'Radon',
+    'rn': 'Radon',  # 제외 예정
     'voc': 'VOCs',
     'co2': 'CO₂',
-    'tab': 'TAB'
+    'tab': 'TAB'  # 제외 예정
 }
+
+# 상관계수 매트릭스에서 제외할 물질 목록
+excluded_columns = ['tab', 'pm1', 'rn']  # TAB, PM1, Radon 제외
 
 # 시설명 영문 매핑
 facility_names = {
@@ -75,6 +80,11 @@ def encode_filename(filename):
     return filename.encode('utf-8').decode('utf-8', errors='ignore')
 
 def optimize_png(filename):
+    # OptiPNG 비활성화 상태라면 바로 리턴
+    if not ENABLE_OPTIMIZATION:
+        print(f"이미지 최적화 비활성화 상태: {filename}")
+        return
+        
     # 최적화 시도
     try:
         # OptiPNG 경로 확인
@@ -92,8 +102,9 @@ def optimize_png(filename):
         # 오류가 발생해도 프로그램은 계속 실행
 
 def create_correlation_matrix(df):
-    # 상관계수 매트릭스 계산
-    return df.corr()
+    # 상관계수 매트릭스 계산 (제외할 열 제거 후)
+    df_filtered = df.drop(columns=excluded_columns, errors='ignore')  # 해당 열이 없으면 무시
+    return df_filtered.corr()
 
 def plot_correlation_matrix(corr_matrix, facility_name, custom_title=None):
     plt.figure(figsize=(14, 12))
@@ -133,7 +144,10 @@ def plot_correlation_matrix(corr_matrix, facility_name, custom_title=None):
     
     # 그래프 저장 (파일명은 facility_name 기준으로 유지)
     plt.savefig(f"C:/muf/result/{facility_name.replace(' ', '_')}_correlation_matrix.png", dpi=350, bbox_inches='tight')
+    
+    # 이미지 최적화 (주석 처리하여 비활성화)
     optimize_png(f"C:/muf/result/{facility_name.replace(' ', '_')}_correlation_matrix.png")
+    
     plt.close()
 
 # 그룹별 평균 상관관계 행렬 계산 및 플롯 생성
