@@ -39,14 +39,9 @@ self_daycare = pd.read_csv("C:\\muf\\standard_conc\\daycarecenter.csv", encoding
 self_academy = pd.read_csv("C:\\muf\\standard_conc\\academy.csv", encoding='utf-8')
 
 # List all the dataframes and their corresponding titles
-
-dataframes = [ob3_min, ob4_min, ob10_min, ob5_min, ob6_min, ob7_min, ob8_min, ob9_min, ob1_min, ob2_min]
-
-
-titles = ["영통역\n대합실", "영통역\n지하역사", "하이씨앤씨\n학원", "이든어린이집", "좋은이웃\n데이케어센터1", "좋은이웃\n데이케어센터2", "좋은이웃\n데이케어센터3", "좋은이웃\n데이케어센터4",
-          "가산A1\n타워주차장", "에이샵\n스크린골프"]
-
-
+dataframes = [ob1_min, ob2_min, ob3_min, ob4_min, ob5_min, ob6_min, ob7_min, ob8_min, ob9_min, ob10_min]
+titles = ["가산A1\n타워주차장", "에이샵\n스크린골프", "영통역대합실", "영통역지하역사",
+          "이든어린이집", "좋은이웃\n데이케어센터1", "좋은이웃\n데이케어센터2", "좋은이웃\n데이케어센터3", "좋은이웃\n데이케어센터4", "하이씨앤씨\n학원"]
 
 
 # List all the pollutants
@@ -65,175 +60,91 @@ for pollutant in pollutants:
     if pollutant == 'pm10':
         model_name_4th = "PM10"
         model_name_label = "ug/m³"
-        cut_conc1 = 100
-        cut_conc2 = 75
-        cut_conc3 = 200
-        cut_conc4 = 200
-        col1 = 'red'
-        col2 = 'red'
-        col3 = 'red'
-        col4 = 'red'
+        cut_conc = 200
+        col = 'red'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 1
     elif pollutant == 'pm25':
         model_name_4th = "PM2.5"
         model_name_label = "ug/m³"
-        cut_conc1 = 50
-        cut_conc2 = 35
-        cut_conc3 = 0
-        cut_conc4 = 0
-        col1 = 'red'
-        col2 = 'red'
-        col3 = 'None'
-        col4 = 'None'
+        cut_conc = 200
+        col = 'red'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 1
     elif pollutant == 'pm1':
         model_name_4th = "PM1.0"
         model_name_label = "ug/m³"
-        cut_conc1 = 0
-        cut_conc2 = 0
-        cut_conc3 = 0
-        cut_conc4 = 0
-        col1 = 'None'
-        col2 = 'None'
-        col3 = 'None'
-        col4 = 'None'
+        cut_conc = 200
+        col = 'red'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 1
         plu = "concentration "
     elif pollutant == 'humi':
         model_name_4th = "Relative Humidity"
         model_name_label = "%"
-        cut_conc1 = 90
-        cut_conc2 = 90
-        cut_conc3 = 90
-        cut_conc4 = 90
-        col1 = 'None'
-        col2 = 'None'
-        col3 = 'None'
-        col4 = 'None'
+        cut_conc = 100
+        col = 'None'
         scale_y = "linear"
         scale_name = "linear"
-        mul = 1
         plu = ""
     elif pollutant == 'temp':
         model_name_4th = "Temperature"
         model_name_label = "°C"
-        cut_conc1 = 10
-        cut_conc2 = 10
-        cut_conc3 = 10
-        cut_conc4 = 0
-        col1 = 'None'
-        col2 = 'None'
-        col3 = 'None'
-        col4 = 'None'
+        cut_conc = 10
+        col = 'None'
         scale_y = "linear"
         scale_name = "linear"
-        mul = 1
         plu = ""
     elif pollutant == 'hcho':
         model_name_4th = "HCHO"
         model_name_label = "ug/m³"
-        cut_conc1 = 100
-        cut_conc2 = 80
-        cut_conc3 = 100
-        cut_conc4 = 0
-        col1 = 'red'
-        col2 = 'red'
-        col3 = 'red'
-        col4 = 'None'
+        cut_conc = 100
+        col = 'red'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 1
     elif pollutant == 'co':
         model_name_4th = "CO"
         model_name_label = "ppm"
-        cut_conc1 = 10
-        cut_conc2 = 10
-        cut_conc3 = 25
-        cut_conc4 = 0
-        col1 = 'red'
-        col2 = 'red'
-        col3 = 'red'
-        col4 = 'None'
+        cut_conc = 25
+        col = 'red'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 1
     elif pollutant == 'no2':
         model_name_4th = "NO2"
-        model_name_label = "ppm"
-        cut_conc1 = 0.1
-        cut_conc2 = 0.05
-        cut_conc3 = 0.30
-        cut_conc4 = 0
-        col1 = 'red'
-        col2 = 'red'
-        col3 = 'red'
-        col4 = 'None'
+        model_name_label = "ppb"
+        cut_conc = 300
+        col = 'red'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 0.001
     elif pollutant == 'rn':
         model_name_4th = "Rn"
         model_name_label = "Bq/m³"
-        cut_conc1 = 148
-        cut_conc2 = 148
-        cut_conc3 = 148
-        cut_conc4 = 0
-        col1 = 'red'
-        col2 = 'red'
-        col3 = 'red'
-        col4 = 'None'
+        cut_conc = 148
+        col = 'red'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 1
     elif pollutant == 'voc':
         model_name_4th = "VOC"
         model_name_label = "ug/m³"
-        cut_conc1 = 500
-        cut_conc2 = 400
-        cut_conc3 = 1000
-        cut_conc4 = 0
-        col1 = 'red'
-        col2 = 'red'
-        col3 = 'red'
-        col4 = 'None'
+        cut_conc = 1000
+        col = 'red'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 1
     elif pollutant == 'co2':
         model_name_4th = "CO2"
         model_name_label = "ppm"
-        cut_conc1 = 1000
-        cut_conc2 = 1000
-        cut_conc3 = 1000
-        cut_conc4 = 0
-        col1 = 'red'
-        col2 = 'red'
-        col3 = 'red'
-        col4 = 'None'
+        cut_conc = 1000
+        col = 'red'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 1
         plu = "concentration "
     elif pollutant == 'tab':
         model_name_4th = "TAB"
         model_name_label = "CFU/m³"
-        cut_conc1 = 0
-        cut_conc2 = 800
-        cut_conc3 = 0
-        cut_conc4 = 0
-        col1 = 'None'
-        col2 = 'red'
-        col3 = 'None'
-        col4 = 'None'
+        cut_conc = 100
+        col = 'None'
         scale_y = "symlog"
         scale_name = "log"
-        mul = 1
     else:
         pass
 
@@ -244,7 +155,7 @@ for pollutant in pollutants:
     # Iterate through each site
     for df in dataframes:
         # Drop missing values from this pollutant's column
-        data = (df[pollutant].dropna())*mul
+        data = df[pollutant].dropna()
 
         # If there is any data for this site and pollutant, set all_na to False
         if not data.empty:
@@ -266,8 +177,8 @@ for pollutant in pollutants:
 
     # Create the boxplot
     sns.boxplot(data=data_all_sites, palette=colors, ax=ax)
-    ax.set_yscale("symlog")
-    plt.plot([-0.5, 9.5], [cut_conc1, cut_conc1], color=col1, linestyle='--')
+    #ax.set_yscale("symlog")
+    plt.axhline(y=cut_conc, color=col, linestyle='--')
     # Set the x-tick labels to be the site names
     ax.set_xticks(range(len(titles)))
     ax.set_xticklabels(titles, fontproperties=korean_font, fontweight='bold')
@@ -280,21 +191,20 @@ for pollutant in pollutants:
     # Set the minimum y-value to be the smallest value among all data minus 0.2
     ax.set_ylim([min_value - 0.2, ax.get_ylim()[1]])
     # Create a FuncFormatter object from the function
-    # formatter = FuncFormatter(formatter)
-    # cut_conc_values = [cut_conc1, cut_conc2, cut_conc3, cut_conc4]
-    # # Use this formatter for the y-axis tick labels
-    # ax.yaxis.set_major_formatter(formatter)
-    # for cut_conc in cut_conc_values:
-    #     plt.yticks(list(plt.yticks()[0]) + [cut_conc])
-    #     ax = plt.gca()  # get current axes
-    #     yticks = ax.get_yticks().tolist()
-    #     yticks[-1] = f'{cut_conc:.2f}'
-    #     ax.set_yticklabels(yticks)
-    # # Create a FuncFormatter object from the function
-    # formatter = FuncFormatter(formatter)
-    #
-    # # Use this formatter for the y-axis tick labels
-    # ax.yaxis.set_major_formatter(formatter)
+    formatter = FuncFormatter(formatter)
+
+    # Use this formatter for the y-axis tick labels
+    ax.yaxis.set_major_formatter(formatter)
+    plt.yticks(list(plt.yticks()[0]) + [cut_conc])
+    ax = plt.gca()  # get current axes
+    yticks = ax.get_yticks().tolist()
+    yticks[-1] = f'{cut_conc}'
+    ax.set_yticklabels(yticks)
+    # Create a FuncFormatter object from the function
+    formatter = FuncFormatter(formatter)
+
+    # Use this formatter for the y-axis tick labels
+    ax.yaxis.set_major_formatter(formatter)
     plt.tight_layout()
     # Show the plot
     plt.savefig(f'C:\\muf\\graph\\{pollutant}_boxplot.png', dpi=600)
