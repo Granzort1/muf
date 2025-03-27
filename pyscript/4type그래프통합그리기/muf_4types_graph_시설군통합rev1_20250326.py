@@ -1,19 +1,50 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-from datetime import datetime
 import os
+from datetime import datetime
+from collections import defaultdict
+
+# openpyxl을 이용한 엑셀 작성 및 서식
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill
 
 # -----------------------------------------------------------------------------
-# 한글 폰트 및 LaTeX 수식 설정 (예: Windows '맑은 고딕')
+# (0) 폰트 & LaTeX 설정
 # -----------------------------------------------------------------------------
 plt.rcParams['font.family'] = 'Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] = False
-plt.rcParams['mathtext.default'] = 'regular'  # 수식(Text) 표현을 위해
+plt.rcParams['mathtext.default'] = 'regular'
 
 # -----------------------------------------------------------------------------
-# [A] 시설유형 매핑 및 기준표
+# (1) 영문 장소명/물질명 매핑
+# -----------------------------------------------------------------------------
+location_mapping = {
+    "가산A1타워주차장": "Underground Parking Facility",
+    "에이샵스크린골프": "Indoor Golf Simulation Facility",
+    "영통역대합실": "Subway Station",
+    "영통역지하역사": "Subway Station",
+    "영통역통합": "Subway Station",
+    "이든어린이집": "Childcare Center",
+    "좋은이웃데이케어센터": "Daycare Center",
+    "좋은이웃데이케어센터통합": "Daycare Center",
+    "하이씨앤씨학원": "Educational Facility"
+}
+
+pollutant_english = {
+    "pm10": "PM10",
+    "pm25": "PM2.5",
+    "co2": "CO2",
+    "voc": "VOC",
+    "temp": "Temperature",
+    "humi": "Humidity",
+    "hcho": "HCHO",
+    "co": "CO",
+    "no2": "NO2"
+}
+
+# -----------------------------------------------------------------------------
+# (2) 시설유형/기준
 # -----------------------------------------------------------------------------
 facility_type_mapping = {
     "가산A1타워주차장": "실내주차장",
@@ -26,27 +57,29 @@ facility_type_mapping = {
     "좋은이웃데이케어센터2": "노인요양시설",
     "좋은이웃데이케어센터3": "노인요양시설",
     "좋은이웃데이케어센터4": "노인요양시설",
-    "하이씨앤씨학원": "다중이용시설"
+    "하이씨앤씨학원": "다중이용시설",
+    "영통역통합": "다중이용시설",
+    "좋은이웃데이케어센터통합": "노인요양시설"
 }
 
 standards_by_facility_type = {
     "다중이용시설": {
-        "pm10": 100,  # μg/m³
-        "pm25": 50,   # μg/m³
-        "co2": 1000,  # ppm
-        "hcho": 100,  # μg/m³
-        "co": 10,     # ppm
-        "no2": 100,   # ppb
-        "voc": 500    # μg/m³
+        "pm10": 100,
+        "pm25": 50,
+        "co2": 1000,
+        "hcho": 100,
+        "co": 10,
+        "no2": 100,
+        "voc": 500
     },
     "어린이집": {
-        "pm10": 75,   # μg/m³
-        "pm25": 35,   # μg/m³
-        "co2": 1000,  # ppm
-        "voc": 400,   # μg/m³
-        "hcho": 80,   # μg/m³
-        "co": 10,     # ppm
-        "no2": 50     # ppb
+        "pm10": 75,
+        "pm25": 35,
+        "co2": 1000,
+        "voc": 400,
+        "hcho": 80,
+        "co": 10,
+        "no2": 50
     },
     "노인요양시설": {
         "pm10": 75,
@@ -67,257 +100,289 @@ standards_by_facility_type = {
     },
     "실내체육시설": {
         "pm10": 200,
-        # 필요시 다른 물질 기준 추가
+        "pm25": 50,
+        "co2": 1000,
+        "hcho": 100,
+        "co": 10,
+        "no2": 100,
+        "voc": 500
     }
 }
 
+def get_facility_type(place_name: str) -> str:
+    if "좋은이웃데이케어센터" in place_name and place_name not in facility_type_mapping:
+        return facility_type_mapping.get("좋은이웃데이케어센터", None)
+    return facility_type_mapping.get(place_name, None)
+
+def get_standard_line(place_name: str, pollutant: str):
+    ftype = get_facility_type(place_name)
+    if not ftype:
+        return None
+    return standards_by_facility_type.get(ftype, {}).get(pollutant, None)
+
 # -----------------------------------------------------------------------------
-# [B] CSV 불러오기 (예시)
+# (3) CSV 불러오기
 # -----------------------------------------------------------------------------
 ob1_min = pd.read_csv("C:/muf/input/가산A1타워주차장_20230331.csv", encoding='utf-8')
 ob2_min = pd.read_csv("C:/muf/input/에이샵스크린골프_20230331.csv", encoding='utf-8')
-ob3_min = pd.read_csv("C:/muf/input/영통역대합실_20230331.csv", encoding='utf-8')
-ob41_min = pd.read_csv("C:/muf/input/영통역지하역사_20230331.csv", encoding='utf-8')
-ob42_min = pd.read_csv("C:/muf/input/이든어린이집_20230331.csv", encoding='utf-8')
+ob31_min = pd.read_csv("C:/muf/input/영통역대합실_20230331.csv", encoding='utf-8')
+ob32_min = pd.read_csv("C:/muf/input/영통역지하역사_20230331.csv", encoding='utf-8')
+ob4_min = pd.read_csv("C:/muf/input/이든어린이집_20230331.csv", encoding='utf-8')
 ob51_min = pd.read_csv("C:/muf/input/좋은이웃데이케어센터1_20230331.csv", encoding='utf-8')
 ob52_min = pd.read_csv("C:/muf/input/좋은이웃데이케어센터2_20230331.csv", encoding='utf-8')
 ob53_min = pd.read_csv("C:/muf/input/좋은이웃데이케어센터3_20230331.csv", encoding='utf-8')
 ob54_min = pd.read_csv("C:/muf/input/좋은이웃데이케어센터4_20230331.csv", encoding='utf-8')
 ob6_min = pd.read_csv("C:/muf/input/하이씨앤씨학원_20230331.csv", encoding='utf-8')
 
-# 필요하다면 다른 CSV도 추가로 로드:
+# -----------------------------------------------------------------------------
+# (4) 여러 CSV -> (tmfc_d, tmfc_h) 통합
+# -----------------------------------------------------------------------------
+def rowwise_average_dataframes(dfs):
+    if not dfs:
+        return pd.DataFrame()
+    common_cols = set(dfs[0].columns)
+    for df in dfs[1:]:
+        common_cols = common_cols.intersection(set(df.columns))
+    common_cols = list(common_cols)
+    if 'tmfc_d' not in common_cols or 'tmfc_h' not in common_cols:
+        raise ValueError("DataFrames must have tmfc_d, tmfc_h columns.")
 
+    numeric_cols = []
+    for col in common_cols:
+        if col not in ['tmfc_d', 'tmfc_h'] and pd.api.types.is_numeric_dtype(dfs[0][col]):
+            numeric_cols.append(col)
+
+    for df in dfs:
+        df.sort_values(by=['tmfc_d', 'tmfc_h'], inplace=True, ignore_index=True)
+
+    all_times = set()
+    for df in dfs:
+        for row in df[['tmfc_d','tmfc_h']].itertuples(index=False):
+            all_times.add((row.tmfc_d, row.tmfc_h))
+    all_times = sorted(all_times, key=lambda x:(x[0],x[1]))
+
+    result_rows = []
+    for (d,h) in all_times:
+        sub_records_list = []
+        for df in dfs:
+            sub_df = df[(df['tmfc_d']==d)&(df['tmfc_h']==h)]
+            sub_records_list.append(sub_df.to_dict('records'))
+        max_len = max(len(rlist) for rlist in sub_records_list)
+        for i in range(max_len):
+            row_data = {'tmfc_d':d, 'tmfc_h':h}
+            for col in numeric_cols:
+                vals=[]
+                for rlist in sub_records_list:
+                    if i < len(rlist):
+                        val=rlist[i].get(col, np.nan)
+                        if pd.notnull(val):
+                            vals.append(val)
+                row_data[col] = np.mean(vals) if len(vals)>0 else np.nan
+            result_rows.append(row_data)
+
+    merged_df = pd.DataFrame(result_rows)
+    merged_df.sort_values(by=['tmfc_d','tmfc_h'], inplace=True, ignore_index=True)
+    return merged_df
 
 # -----------------------------------------------------------------------------
-# [C] 보조함수
-# -----------------------------------------------------------------------------
-def get_facility_type(place_name: str) -> str:
-    """
-    장소명 -> 시설유형(예: '노인요양시설') 반환.
-    '좋은이웃데이케어센터1' ~ '좋은이웃데이케어센터4'처럼 숫자 붙는 경우도 처리.
-    """
-    if "좋은이웃데이케어센터" in place_name:
-        return facility_type_mapping.get("좋은이웃데이케어센터", None)
-    return facility_type_mapping.get(place_name, None)
-
-def get_standard_line(place_name: str, pollutant: str):
-    """
-    장소명 -> 시설유형 -> 기준표 -> 특정 물질(pollutant)의 기준농도
-    
-    반환값:
-    - 기준이 있고 의미있는 값인 경우: 해당 기준값
-    - 기준이 없거나 너무 큰 값(100000 초과)인 경우: None (기준선 미표시)
-    """
-    facility_type = get_facility_type(place_name)
-    if not facility_type:
-        return None
-    
-    facility_standards = standards_by_facility_type.get(facility_type, {})
-    standard_value = facility_standards.get(pollutant, None)
-    
-    if standard_value is None or standard_value > 100000:
-        return None
-        
-    return standard_value
-
-def find_missing_periods(df, time_col='datetime'):
-    """
-    시계열 데이터에서 missing 구간(1시간에 60개 미만 or 아예 시간 자체가 없는 구간) 찾기
-    반환값: [(start, end), (start, end), ...] 형태
-    """
-    if time_col not in df.columns:
-        return []
-
-    # 모든 시간별로 60개가 정상치라고 가정
-    all_dates = pd.date_range(start=df[time_col].min(),
-                              end=df[time_col].max(), freq='h')
-    # "해당 시간에 60개 미만"인 경우
-    incomplete_hours = df[time_col].value_counts().loc[lambda x: x < 60].index
-    # 전체 시계열에서 누락된 시간 + 불충분(hour당 60개 미만) 시간 합집합
-    missing_dates = pd.Index(all_dates).difference(df[time_col]).union(incomplete_hours)
-
-    if missing_dates.empty:
-        return []
-
-    missing_dates = missing_dates.to_series().sort_values()
-    # 1시간 초과로 이어지는 구간은 하나의 interval로 묶음
-    missing_periods = []
-    for _, group in missing_dates.groupby((missing_dates.diff().dt.total_seconds() > 3600).cumsum()):
-        missing_periods.append((group.iloc[0], group.iloc[-1]))
-    return missing_periods
-
-# -----------------------------------------------------------------------------
-# [D] 축 라벨(학술 표기) 매핑 딕셔너리 (LaTeX 수식 사용)
-# -----------------------------------------------------------------------------
-pollutant_label_dict = {
-    "pm10": r"PM$_{10} (ug/m^3)$",
-    "pm25": r"PM$_{2.5} (ug/m^3)$",
-    "co2": r"CO$_2$ (ppm)",
-    "voc": r"VOC $(ug/m^3)$",
-    "temp": "Temperature(°C)",
-    "humi": "Humidity(%)",
-    "hcho": r"HCHO $(ug/m^3)$",
-    "co": r"CO $(ppm)$",
-    "no2": r"NO$_2$ $(ppb)$"
-}
-
-# -----------------------------------------------------------------------------
-# [E] 통합 그래프 함수 (matplotlib만 활용)
+# (5) 그래프 그리는 함수 (시계열 제외, 박스플롯만)
 # -----------------------------------------------------------------------------
 def plot_air_quality_for_location(
     df: pd.DataFrame,
     place_name: str,
     pollutants: list,
     pollutant_scale_dict: dict,
-    save_dir: str = "C:/muf/graph"
+    save_dir: str
 ):
-    """
-    장소(place_name)에 대해, 각 물질(pollutants)별로
-    1) 시간 시리즈 그래프(time series)
-    2) 시간별 박스플롯(hourly boxplot)
-    3) (연-월 표시) 월별 박스플롯
-    를 그려서 각각 PNG 파일로 저장.
-
-    - 0 이하값(로그 스케일 사용 시 문제 발생)을 NaN으로 대체
-    - 축 라벨은 pollutant_label_dict를 사용 (학술 표기: LaTeX)
-    """
-    # 결과 저장 폴더 없으면 생성
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    # datetime 변환
-    df['datetime'] = pd.to_datetime(
-        df['tmfc_d'].astype(str) + df['tmfc_h'].astype(str).str.zfill(2),
-        format='%Y%m%d%H'
-    )
-    # tmfc_h를 24시간(0~23) 범위 정리
-    df["tmfc_h"] = df["tmfc_h"].astype(int) % 24
+    # 영문 장소명
+    loc_english = location_mapping.get(place_name, place_name)
 
-    # 연-월(YYYY-MM) 정보를 담은 열 추가
+    # datetime 변환
+    df['datetime'] = pd.to_datetime(df['tmfc_d'].astype(str)+df['tmfc_h'].astype(str).str.zfill(2),
+                                    format='%Y%m%d%H')
+    df['tmfc_h'] = df['tmfc_h'].astype(int)%24
     df['year_month'] = df['datetime'].dt.strftime('%Y-%m')
+
+    # 박스플롯 전용 라벨 (LaTeX)
+    pollutant_label_dict = {
+        "pm10": r"PM$_{10}$ ($\mu g/m^3$)",
+        "pm25": r"PM$_{2.5}$ ($\mu g/m^3$)",
+        "co2": r"CO$_2$ (ppm)",
+        "voc": r"VOC ($\mu g/m^3$)",
+        "temp": "Temperature (°C)",
+        "humi": "Humidity (%)",
+        "hcho": r"HCHO ($\mu g/m^3$)",
+        "co": r"CO (ppm)",
+        "no2": r"NO$_2$ (ppb)"
+    }
 
     for pollutant in pollutants:
         if pollutant not in df.columns:
-            print(f"Warning: [{place_name}]에 {pollutant} 데이터가 없습니다.")
             continue
 
-        # y축 스케일 설정
+        # y축 스케일
         scale_y = pollutant_scale_dict.get(pollutant, "linear")
+        if scale_y in ["log","symlog"]:
+            df.loc[df[pollutant]<=0, pollutant] = np.nan
 
-        # (로그/시밀로그) 0 이하값을 NaN으로 치환
-        if scale_y in ["log", "symlog"]:
-            df.loc[df[pollutant] <= 0, pollutant] = np.nan
-
-        # y축 라벨(LaTeX 학술 표기)
-        y_label = pollutant_label_dict.get(pollutant, pollutant)
-
-        # ============= A. 시간 시리즈 그래프 =============
-        plt.figure(figsize=(10, 6))
-        plt.title(f"[{place_name}] {y_label} Time Series", fontsize=14)
-
-        # 시간 시리즈 산점도
-        plt.plot(df['datetime'], df[pollutant], 'o', markersize=2)
-        plt.ylabel(y_label, fontsize=10)
-        plt.yscale(scale_y)
-
-        # 기준선
+        y_label = pollutant_label_dict.get(pollutant, pollutant_english.get(pollutant, pollutant))
         cut_conc = get_standard_line(place_name, pollutant)
-        if cut_conc is not None:
-            plt.axhline(y=cut_conc, linestyle='--')
 
-        # 누락 구간 표시 (다만 색상 지정은 제거)
-        missing_periods = find_missing_periods(df)
-        for (start, end) in missing_periods:
-            if start == end:
-                # 단일 시점 누락 -> 작은 점 표시
-                plt.scatter(start, 0, s=10)
-            else:
-                # 구간 누락 -> 수평선 표시
-                plt.hlines(y=0, xmin=start, xmax=end)
-
-        plt.tight_layout()
-        plt.savefig(f"{save_dir}/time_series_{place_name}_{pollutant}.png", dpi=300)
-        plt.close()
-
-        # ============= B. 시간별 박스플롯 =============
-        # 시간대(hour)별로 자료를 나누어 boxplot
-        plt.figure(figsize=(9, 6))
-        plt.title(f"[{place_name}] {y_label} Hourly Boxplot", fontsize=14)
-
-        # 시간 목록(정렬)
+        # 시간별 박스플롯
+        plt.figure(figsize=(9,6))
+        plt.title(f"{loc_english} {pollutant_english.get(pollutant,pollutant)} Hourly Boxplot", fontsize=14)
         hours_sorted = sorted(df["tmfc_h"].unique())
-        # 시간대별 그룹
-        grouped_data_hour = [
-            df.loc[df["tmfc_h"] == h, pollutant].dropna() for h in hours_sorted
-        ]
-
-        # 박스플롯
-        # positions를 1부터 시작하도록, x축에 시간 표시
+        grouped_data_hour = [ df.loc[df["tmfc_h"]==h, pollutant].dropna() for h in hours_sorted ]
         plt.boxplot(grouped_data_hour, positions=range(1, len(hours_sorted)+1))
         plt.xlabel("Hour of Day")
         plt.ylabel(y_label)
         plt.yscale(scale_y)
         plt.xticks(range(1, len(hours_sorted)+1), [str(h) for h in hours_sorted])
 
-        # 기준선
         if cut_conc is not None:
-            plt.axhline(y=cut_conc, linestyle='--')
+            plt.axhline(y=cut_conc, color='red', linestyle='--')
 
-        # 시간대별 평균 찍기
         means_hourly = [g.mean() for g in grouped_data_hour]
-        plt.scatter(range(1, len(hours_sorted)+1), means_hourly)
+        plt.scatter(range(1, len(hours_sorted)+1), means_hourly, color='darkblue')
 
         plt.tight_layout()
-        plt.savefig(f"{save_dir}/hourly_boxplot_{place_name}_{pollutant}.png", dpi=300)
+        outfile = f"{save_dir}/hourly_boxplot_{loc_english}_{pollutant_english.get(pollutant,pollutant)}.png"
+        plt.savefig(outfile, dpi=300)
         plt.close()
 
-        # ============= C. (연-월 표시) 월별 박스플롯 =============
-        # pollutant 값이 NaN이 아닌 레코드만 추출
-        df_nonan = df.dropna(subset=[pollutant]).copy()
-
-        # 실제 데이터가 있는 연-월만 추림
+        # 월별 박스플롯
+        df_nonan = df.dropna(subset=[pollutant])
         valid_year_months = sorted(df_nonan["year_month"].unique())
-        if len(valid_year_months) == 0:
-            print(f"Note: [{place_name}] {pollutant} 데이터가 존재하지 않아 월별 박스플롯을 건너뜁니다.")
+        if len(valid_year_months)==0:
             continue
-
-        # 연-월별 그룹
-        plt.figure(figsize=(9, 6))
-        plt.title(f"[{place_name}] {y_label} Monthly Boxplot", fontsize=14)
-
-        # 각 연-월에 해당하는 값 리스트 생성
-        grouped_data_month = [
-            df_nonan.loc[df_nonan["year_month"] == ym, pollutant].dropna()
-            for ym in valid_year_months
-        ]
-
-        # 박스플롯
-        plt.boxplot(grouped_data_month, positions=range(1, len(valid_year_months)+1))
+        plt.figure(figsize=(9,6))
+        plt.title(f"{loc_english} {pollutant_english.get(pollutant,pollutant)} Monthly Boxplot", fontsize=14)
+        grouped_data_month = [ df_nonan.loc[df_nonan["year_month"]==ym, pollutant].dropna() for ym in valid_year_months ]
+        plt.boxplot(grouped_data_month, positions=range(1,len(valid_year_months)+1))
         plt.xlabel("Year-Month")
         plt.ylabel(y_label)
         plt.yscale(scale_y)
         plt.xticks(range(1, len(valid_year_months)+1), valid_year_months, rotation=45)
 
-        # 기준선
         if cut_conc is not None:
-            plt.axhline(y=cut_conc, linestyle='--')
+            plt.axhline(y=cut_conc, color='red', linestyle='--')
 
-        # 연-월별 평균(점 표시)
         means_monthly = [arr.mean() for arr in grouped_data_month]
-        plt.scatter(range(1, len(valid_year_months)+1), means_monthly)
+        plt.scatter(range(1, len(valid_year_months)+1), means_monthly, color='darkblue')
 
         plt.tight_layout()
-        plt.savefig(f"{save_dir}/monthly_boxplot_{place_name}_{pollutant}.png", dpi=300)
+        outfile = f"{save_dir}/monthly_boxplot_{loc_english}_{pollutant_english.get(pollutant,pollutant)}.png"
+        plt.savefig(outfile, dpi=300)
         plt.close()
 
 # -----------------------------------------------------------------------------
-# [F] 실제 호출부 (예시)
+# (6) 초과 횟수/전체/초과율 계산 (전체 or 특정 월)
 # -----------------------------------------------------------------------------
-if __name__ == "__main__":
-    # 그릴 물질 리스트
-    target_pollutants = ["pm10", "pm25", "co2", "voc", "temp", "humi", "hcho", "co", "no2"]
+def calc_exceed_ratio(df, place_name, pollutant):
+    """df에서 pollutant 유효데이터 중 기준을 초과(>)하는 개수 비율."""
+    cut = get_standard_line(place_name, pollutant)
+    valid_data = df[pollutant].dropna()
+    total_count = len(valid_data)
+    if cut is not None and total_count>0:
+        exceed_count = sum(valid_data>cut)
+        exceed_ratio = (exceed_count/total_count)*100.0
+        return exceed_count, total_count, exceed_ratio
+    else:
+        return 0, total_count, 0.0
 
-    # 물질별 y축 스케일
+# -----------------------------------------------------------------------------
+# (7) 엑셀에 기록하는 함수
+# -----------------------------------------------------------------------------
+def write_results_to_sheet(ws, results_dict):
+    """
+    results_dict 구조:
+        { place_name(한글) : { pollutant : (exceed_count, total_count, ratio) }, ... }
+
+    (수정 사항)
+    - 물질 표시 순서는 고정 리스트 ["pm10","pm25","co2","voc","temp","humi","hcho","co","no2"] 순서를 따름
+    - 1열(첫 번째 열)은 해당 행의 데이터 종류(예: '장소명(영문)', '물질', '초과횟수', '전체개수', '초과율')가 표시됨.
+    - 장소 하나당 다음과 같은 형식으로 6행을 사용:
+        1) row:   A열='장소명(영문)', B열=장소명
+        2) row+1: A열='물질', B열부터=물질리스트
+        3) row+2: A열='초과횟수', B열부터=초과횟수
+        4) row+3: A열='전체개수', B열부터=전체개수
+        5) row+4: A열='초과율',   B열부터=초과율
+        6) row+5: 빈 행
+    - 초과율>2%인 셀들은 배경을 연핑크색으로
+    """
+    pink_fill = PatternFill(start_color='FFFFC0CB', end_color='FFFFC0CB', fill_type='solid')
+
+    # 고정된 물질 순서
+    ordered_pollutants = ["pm10","pm25","co2","voc","temp","humi","hcho","co","no2"]
+
+    current_row = 1
+    for place_name, data_dict in results_dict.items():
+        loc_english = location_mapping.get(place_name, place_name)
+
+        # data_dict.keys() 중 실제 데이터가 있는 물질만 추려서, ordered_pollutants 순서대로 정렬
+        pol_list = [p for p in ordered_pollutants if p in data_dict.keys()]
+
+        # (1) 첫 행: 장소명(영문)
+        ws.cell(row=current_row, column=1, value="장소명(영문)")
+        ws.cell(row=current_row, column=2, value=loc_english)
+        current_row += 1
+
+        # (2) 물질 행
+        ws.cell(row=current_row, column=1, value="물질")
+        for c, pol in enumerate(pol_list, start=2):
+            pol_eng = pollutant_english.get(pol, pol)
+            cell = ws.cell(row=current_row, column=c)
+            cell.value = pol_eng
+        current_row += 1
+
+        # (3) 초과횟수 행
+        ws.cell(row=current_row, column=1, value="초과횟수")
+        for c, pol in enumerate(pol_list, start=2):
+            exceed_count, _, ratio = data_dict[pol]
+            cell_exceed = ws.cell(row=current_row, column=c, value=exceed_count)
+            # 초과율 판단해서 2% 초과 시 색칠(물질명/초과횟수/전체개수/초과율 모두)
+            if ratio > 2.0:
+                # 물질명 칸은 (current_row - 1)행, 같은 column
+                ws.cell(row=current_row - 1, column=c).fill = pink_fill
+                cell_exceed.fill = pink_fill
+        current_row += 1
+
+        # (4) 전체개수 행
+        ws.cell(row=current_row, column=1, value="전체개수")
+        for c, pol in enumerate(pol_list, start=2):
+            _, total_count, ratio = data_dict[pol]
+            cell_total = ws.cell(row=current_row, column=c, value=total_count)
+            if ratio > 2.0:
+                cell_total.fill = pink_fill
+        current_row += 1
+
+        # (5) 초과율 행
+        ws.cell(row=current_row, column=1, value="초과율(%)")
+        for c, pol in enumerate(pol_list, start=2):
+            _, _, ratio = data_dict[pol]
+            cell_ratio = ws.cell(row=current_row, column=c, value=ratio)
+            if ratio > 2.0:
+                cell_ratio.fill = pink_fill
+        current_row += 1
+
+        # (6) 빈 행
+        current_row += 1
+
+# -----------------------------------------------------------------------------
+# (8) 실제 실행
+# -----------------------------------------------------------------------------
+if __name__=="__main__":
+    # 1) 영통역 통합
+    ob3_min = rowwise_average_dataframes([ob31_min, ob32_min])
+    # 2) 좋은이웃데이케어센터 통합
+    ob5_min = rowwise_average_dataframes([ob51_min, ob52_min, ob53_min, ob54_min])
+
+    # 그래프용 오염물질 목록
+    target_pollutants = ["pm10","pm25","co2","voc","temp","humi","hcho","co","no2"]
+
     pollutant_scale_dict = {
         "pm10": "symlog",
         "pm25": "symlog",
@@ -330,17 +395,85 @@ if __name__ == "__main__":
         "no2": "symlog"
     }
 
-    # "좋은이웃데이케어센터1" CSV 파일에 대해 그래프 생성
-    plot_air_quality_for_location(
-        ob1_min,
-        place_name="좋은이웃데이케어센터1",
-        pollutants=target_pollutants,
-        pollutant_scale_dict=pollutant_scale_dict,
-        save_dir="C:/muf/result/graph/좋은이웃1"
-    )
+    # 그래프 생성
+    plot_air_quality_for_location(ob1_min, "가산A1타워주차장", target_pollutants, pollutant_scale_dict, "C:/muf/result/graph/1_지하주차장")
+    plot_air_quality_for_location(ob2_min, "에이샵스크린골프", target_pollutants, pollutant_scale_dict, "C:/muf/result/graph/2_스크린골프장")
+    plot_air_quality_for_location(ob3_min, "영통역통합",       target_pollutants, pollutant_scale_dict, "C:/muf/result/graph/3_지하철")
+    plot_air_quality_for_location(ob4_min, "이든어린이집",     target_pollutants, pollutant_scale_dict, "C:/muf/result/graph/4_어린이집")
+    plot_air_quality_for_location(ob5_min, "좋은이웃데이케어센터통합", target_pollutants, pollutant_scale_dict, "C:/muf/result/graph/5_노인요양시설")
+    plot_air_quality_for_location(ob6_min, "하이씨앤씨학원",   target_pollutants, pollutant_scale_dict, "C:/muf/result/graph/6_학원")
 
-    # 필요시 다른 시설도 동일 패턴 호출 예:
-    # plot_air_quality_for_location(ob2_min, "에이샵스크린골프", target_pollutants, pollutant_scale_dict, "C:/muf/result/graph/에이샵")
-    # plot_air_quality_for_location(ob3_min, "영통역대합실", target_pollutants, pollutant_scale_dict, "C:/muf/result/graph/영통역")
+    # -----------------------------------------------------------------------------
+    # (A) 엑셀에 쓸 통계를 위한 준비
+    # -----------------------------------------------------------------------------
+    # 1) facility-DataFrame 목록
+    facilities_data = [
+        ("가산A1타워주차장", ob1_min),
+        ("에이샵스크린골프", ob2_min),
+        ("영통역통합", ob3_min),
+        ("이든어린이집", ob4_min),
+        ("좋은이웃데이케어센터통합", ob5_min),
+        ("하이씨앤씨학원", ob6_min)
+    ]
 
-    print("모든 그래프 생성 완료!")
+    # 2) 모든 df에 datetime / year_month 열 생성(월별 통계용)
+    for (place_name, df) in facilities_data:
+        df['datetime'] = pd.to_datetime(df['tmfc_d'].astype(str)+df['tmfc_h'].astype(str).str.zfill(2),
+                                        format='%Y%m%d%H', errors='coerce')
+        df['year_month'] = df['datetime'].dt.strftime('%Y-%m')
+
+    # 3) 모든 월(YYYY-MM) 수집
+    all_months = set()
+    for (place_name, df) in facilities_data:
+        all_months.update(df['year_month'].dropna().unique())
+    all_months = sorted(list(all_months))  # 예: ['2023-01','2023-02',...]
+
+    # -----------------------------------------------------------------------------
+    # (B) 전체기간/월별 통계 계산 -> 파이썬 dict 에 저장
+    # -----------------------------------------------------------------------------
+    results_whole = {}
+    results_monthly = defaultdict(dict)
+
+    for (place_name, df) in facilities_data:
+        # 전체기간 통계
+        poll_dict = {}
+        for p in target_pollutants:
+            if p in df.columns:
+                exc, tot, rat = calc_exceed_ratio(df, place_name, p)
+                poll_dict[p] = (exc, tot, rat)
+        results_whole[place_name] = poll_dict
+
+        # 월별 통계
+        for ym in df['year_month'].dropna().unique():
+            sub_df = df[df['year_month']==ym]
+            pol_dict_m = {}
+            for p in target_pollutants:
+                if p in sub_df.columns:
+                    exc, tot, rat = calc_exceed_ratio(sub_df, place_name, p)
+                    pol_dict_m[p] = (exc, tot, rat)
+            if len(pol_dict_m)>0:
+                results_monthly[ym][place_name] = pol_dict_m
+
+    # -----------------------------------------------------------------------------
+    # (C) openpyxl 기반으로 여러 시트에 작성
+    # -----------------------------------------------------------------------------
+    wb = Workbook()
+
+    # 1) 첫 시트: 전체기간
+    ws_whole = wb.active
+    ws_whole.title = "전체기간"
+    write_results_to_sheet(ws_whole, results_whole)
+
+    # 2) 이후 시트들: 월별
+    for ym in all_months:
+        ws_m = wb.create_sheet(title=str(ym))
+        monthly_dict = results_monthly[ym] if ym in results_monthly else {}
+        if monthly_dict:
+            write_results_to_sheet(ws_m, monthly_dict)
+        else:
+            pass  # 해당 월에 데이터가 아예 없으면 비워둠
+
+    out_path = "C:/muf/result/exceedance_ratio.xlsx"
+    wb.save(out_path)
+
+    print(f"모든 그래프 생성 및 통계 엑셀({out_path}) 작성 완료!")
